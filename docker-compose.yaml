@@ -1,0 +1,76 @@
+name: gestion-comptes
+
+services:
+  # ---------- Base de données ----------
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: banque-sqlserver
+    restart: unless-stopped
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_SA_PASSWORD: ${MSSQL_SA_PASSWORD}
+      MSSQL_PID: Developer
+    ports:
+      - "${DB_PORT:-1433}:1433"
+    volumes:
+      - sqlserver-data:/var/opt/mssql
+    healthcheck:
+      test: >
+        /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa
+        -P "$${MSSQL_SA_PASSWORD}" -C -Q "SELECT 1" || exit 1
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    networks:
+      - banque-net
+
+  # ---------- Création de la base (one-shot) ----------
+  db-init:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: banque-db-init
+    depends_on:
+      sqlserver:
+        condition: service_healthy
+    environment:
+      MSSQL_SA_PASSWORD: ${MSSQL_SA_PASSWORD}
+      DB_NAME: ${DB_NAME}
+    command: >
+      /bin/bash -c '
+      /opt/mssql-tools18/bin/sqlcmd -S sqlserver -U sa -P "$${MSSQL_SA_PASSWORD}" -C
+      -Q "IF DB_ID(N'"'"'$${DB_NAME}'"'"') IS NULL CREATE DATABASE [$${DB_NAME}];"
+      '
+    restart: "no"
+    networks:
+      - banque-net
+
+  # ---------- Application Spring Boot ----------
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: banque-app
+    restart: unless-stopped
+    depends_on:
+      sqlserver:
+        condition: service_healthy
+      db-init:
+        condition: service_completed_successfully
+    environment:
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-docker}
+      DB_HOST: sqlserver          # nom du service = DNS interne Docker
+      DB_PORT: 1433
+      DB_NAME: ${DB_NAME}
+      DB_USER: sa
+      DB_PASSWORD: ${MSSQL_SA_PASSWORD}
+    ports:
+      - "${APP_PORT:-8080}:8080"
+    networks:
+      - banque-net
+
+volumes:
+  sqlserver-data:
+
+networks:
+  banque-net:
+    driver: bridge
