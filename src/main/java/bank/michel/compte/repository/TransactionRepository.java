@@ -3,11 +3,11 @@ package bank.michel.compte.repository;
 import bank.michel.compte.model.Transaction;
 import bank.michel.compte.model.TypeTransaction;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
-import java.awt.print.Pageable;
 import java.time.LocalDateTime;
 
 public interface TransactionRepository extends JpaRepository<Transaction, Long> {

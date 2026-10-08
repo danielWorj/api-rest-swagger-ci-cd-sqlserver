@@ -68,6 +68,6 @@ public class ClientController {
     @Operation(summary = "Lister les comptes d'un client")
     @ApiResponse(responseCode = "404", description = "Client introuvable")
     public List<CompteResponse> comptesDuClient(@PathVariable Long id) {
-        return compteService.comptesDuClient(id);
+        return compteService.listerParClient(id);
     }
 }
